@@ -34,10 +34,6 @@ class AnnotationSet
 		HashFile A2C_File, C2A_File;	
 		LogFile Log;
 		unordered_map<string, vector<string> > A2C_Table, C2A_Table;
-		unordered_map<string, int> A2C_cache_state, C2A_cache_state;
-
-		//unordered_map<pair<string, string>, int> pair<int, int> > Diff_Table;
-
 };
 
 void file_copy(const char *filename1, const char *filename2)
