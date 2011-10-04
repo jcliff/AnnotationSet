@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <sys/stat.h>
+#include <set>
 #include "hashfile.h"
 #include "logfile.h"
 
@@ -17,14 +18,14 @@ class AnnotationSet
 		void initialize();
 		void annotate_entry(string A, string C);
 		void unannotate_entry(string A, string C);
-		vector<string> list_annotations(string C);
-		vector<string> list_entries(string A);
+		set<string> list_annotations(string C);
+		set<string> list_entries(string A);
 		void commit_to_disk();
 
 	private:
-		vector<string>& hash_lookup(string, unordered_map<string, vector<string> > &map, HashFile &h);
+		set<string>& hash_lookup(string, unordered_map<string, set<string> > &map, HashFile &h);
 		void modify_entry(string cmd, string A, string C, bool writeLog = true);
-		void modify_entry_in_table( unordered_map<string, vector<string> > &table, 
+		void modify_entry_in_table( unordered_map<string, set<string> > &table, 
 									HashFile &hashfile, string cmd, string key, string value );
 	
 		void atomic_write(char value);
@@ -33,7 +34,7 @@ class AnnotationSet
 		string directory_path, atomic_log_filename;
 		HashFile A2C_File, C2A_File;	
 		LogFile Log;
-		unordered_map<string, vector<string> > A2C_Table, C2A_Table;
+		unordered_map<string, set<string> > A2C_Table, C2A_Table;
 };
 
 void file_copy(const char *filename1, const char *filename2)
@@ -48,38 +49,6 @@ void file_copy(const char *filename1, const char *filename2)
 
     f1.close();
     f2.close();
-}
-
-// determines index of element in sorted vector
-// if element is not in vector, returns index of next highest element
-int vector_find(const vector<std::string> &list, std::string elem)
-{
-	if(list.size() == 0)
-		return 0;
-			
-	if(elem < list[0])	
-		return 0;
-	
-	if(elem > list[list.size() - 1])
-		return list.size();
-
-	int window_low = 0, window_high = list.size() - 1, mid = 0;
-
-	while(window_low <= window_high)
-	{
-		mid = window_low + (window_high - window_low) / 2;
-		if(list[mid] == elem)
-			return mid;
-		
-		if(list[mid] > elem)	
-			window_high = mid - 1;
-		else window_low = mid + 1;
-	}
-
-	if(list[mid] < elem)
-		return mid + 1;
-	else return mid;
-
 }
 
 AnnotationSet::AnnotationSet(string dir_path)
@@ -125,25 +94,14 @@ void AnnotationSet::unannotate_entry(string A, string C)
 	modify_entry("U", A, C, /*writeLog*/ true);
 }
 
-void AnnotationSet::modify_entry_in_table(
-	unordered_map<string, vector<string> > &table, 
-	HashFile &hashfile,
-	string cmd, 
-	string key, 
-	string value
-	)
+set<string> AnnotationSet::list_annotations(string C)
 {
-	vector<string> *list = &hash_lookup(key, table, hashfile);
-	int idx = vector_find(*list, value);
-	
-	if(cmd == "A")
-		if(idx == list->size() || (idx < list->size() && (*list)[idx] != value))
-			list->insert(list->begin() + idx, value);
+	return hash_lookup(C, C2A_Table, C2A_File);
+}
 
-	if(cmd == "U")
-		if(idx < list->size() && (*list)[idx] == value)
-			list->erase(list->begin() + idx);
-
+set<string> AnnotationSet::list_entries(string A)
+{
+	return hash_lookup(A, A2C_Table, A2C_File);
 }
 
 // Perform either an Annotate or Unannotate action
@@ -161,28 +119,34 @@ void AnnotationSet::modify_entry(string cmd, string A, string C, bool writeLog)
 		Log.addEntry(cmd, A, C);
 }
 
-vector<string> AnnotationSet::list_annotations(string C)
+void AnnotationSet::modify_entry_in_table(
+	unordered_map<string, set<string> > &table, 
+	HashFile &hashfile,
+	string cmd, 
+	string key, 
+	string value
+	)
 {
-	return hash_lookup(C, C2A_Table, C2A_File);
-}
+	set<string> *list = &hash_lookup(key, table, hashfile);
 
-vector<string> AnnotationSet::list_entries(string A)
-{
-	return hash_lookup(A, A2C_Table, A2C_File);
+	if(cmd == "A")
+		list->insert(value);
+	
+	if(cmd == "U")
+		list->erase(value);
 }
 
 // return by reference, of in-memory hashtable (populates from disk if necessary)
-vector<string>& AnnotationSet::hash_lookup(
+set<string>& AnnotationSet::hash_lookup(
 	string key,
-	unordered_map<string, vector<string> > &hash_map,
+	unordered_map<string, set<string> > &hash_map,
 	HashFile &hash_file
 	)
 {
 	// read annotation from disk via binary search, and update in-memory table
 	if(hash_map.count(key) == 0)
-	{
 		hash_map[key] = hash_file.get(key);
-	}
+
 	return hash_map[key];
 }
 

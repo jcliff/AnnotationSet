@@ -64,26 +64,29 @@ vector<AnnotationPair> read_initial_annotations(string filename)
 	return pairs;
 }
 
-
-bool vector_count(vector<string> list, string elem)
-{
-	int count = 0;
-	for(int i=0; i<list.size();i++)
-		if(elem == list[i])
-			count++;
-
-	return count;
-}
-
 //verify that all pairs are either bound or unbound
 void verifyAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state)
 {
 	for(int i=0; i<pairs.size(); i++)
 	{
-		string annotation = pairs[i].annotation;
+		set<string>::iterator it;
 		string message = pairs[i].message;
-		assert(vector_count(AS->list_entries(annotation), message) == state);		
-		assert(vector_count(AS->list_annotations(message), annotation) == state);
+		string annotation = pairs[i].annotation;
+
+		set<string> messages = AS->list_entries(annotation);
+		set<string> annotations = AS->list_annotations(message);
+
+		if(state == 1)
+		{
+			assert(messages.find(message) != messages.end());
+			assert(annotations.find(annotation) != annotations.end());
+		}
+		else
+		{
+			assert(messages.find(pairs[i].message) == messages.end());
+			assert(annotations.find(pairs[i].annotation) == annotations.end());			
+		}
+
 	}	
 }
 
@@ -95,13 +98,10 @@ void setAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state)
 
 	for(int i=0; i<pairs.size(); i++)
 	{
-		string annotation = pairs[i].annotation;
-		string message = pairs[i].message;
-
 		if(state == 1)
-			AS->annotate_entry(annotation, message);
+			AS->annotate_entry(pairs[i].annotation, pairs[i].message);
 		else	
-			AS->unannotate_entry(annotation, message);			
+			AS->unannotate_entry(pairs[i].annotation, pairs[i].message);			
 
 	}
 }
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 
 	if(argc < 2)
 	{
-		cout << "USAGE: [KEY/VAL FILE]" << endl;
+		cout << "USAGE: [A2C SNAPSHOT FILE]" << endl;
 		return 0;
 	}
 
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 
 	cout<<"testing system booted from commited hashfile..." << endl;
 	runLiveVerification(AS, pairs);
-	cout<<"done"<<endl<<endl;
+	cout<<"done."<<endl<<endl;
 
 	// ************ Below tests are on a FULLY-DELETED system *********************** //
 

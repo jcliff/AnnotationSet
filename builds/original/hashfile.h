@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <set>
 #include "logfile.h"
 
 #ifndef HASHFILE_H
@@ -18,7 +19,7 @@ class HashFile
 		HashFile(string filename);
 		void setFilename(string filename);
 		string getFilename();
-		std::vector<string> get(string key);
+		set<string> get(string key);
 		void commit(string filename, LogFile &logFile, bool);
 		int length();
 	private:
@@ -95,11 +96,11 @@ int HashFile::get_aligned_index(int index, int mode = -1)
 }
 
 // returns vector of values for specified key; utilizes binary search
-vector<string> HashFile::get(string key)
+set<string> HashFile::get(string key)
 {
 	string curr_key;
 	int window_low = 0, window_high = data_size - 1, mid_begin, mid_end;
-	vector<string> list;
+	set<string> list;
 	file.open(filename.c_str(), fstream::in);
 
 	//window_low and window_high always point to the beginning of a key/value section
@@ -127,7 +128,7 @@ vector<string> HashFile::get(string key)
 
 	// generate list of values for specified key
 	for(int i=mid_begin; i<= mid_end; i++)
-		list.push_back(get_val_at_index(i));
+		list.insert(get_val_at_index(i));
 
 	file.close();
 	return list;	
