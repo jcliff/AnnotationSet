@@ -56,7 +56,6 @@ class LogFile
 		string getFilename();
 		vector<Log::command> readEntries();
 		void addEntry(string cmd, string A, string C);
-		void compact();
 		void clear();
 
 	private:
@@ -116,41 +115,6 @@ vector<Log::command> LogFile::readEntries()
 	file.close();
 
 	return log;
-}
-
-// this function collapses commands in the log file
-
-void LogFile::compact()
-{
-	vector<Log::command> existingEntries = readEntries();
-	fstream temp_file;
-	string temp_filename, line;
-
-	unordered_map<string, Log::command> mapCompact;
-	unordered_map<string, Log::command>::iterator it;
-
-	for(int i=0; i < existingEntries.size(); i++)
-	{
-		Log::command entry = existingEntries[i];
-		string entry_key = entry.A + entry.C;
-		mapCompact[entry_key] = entry;
-	}
-
-	temp_filename = filename + ".tmp";
-	temp_file.open(temp_filename.c_str(), fstream::out | fstream::trunc);
-
-	// Iterate through our compacted map, and write to the temp file
-	for(it = mapCompact.begin(); it != mapCompact.end(); it++)
-	{
-		Log::command entry = (*it).second;
-		line = entry.toString() + "\n";
-		temp_file.write(line.c_str(), line.size());
-	};
-
-	temp_file.flush();
-	temp_file.close();
-
-	rename(temp_filename.c_str(), filename.c_str());
 }
 
 #endif

@@ -6,7 +6,6 @@
 #include <set>
 #include "hashfile.h"
 #include "logfile.h"
-
      
 using namespace std;
 using namespace tr1;
@@ -28,6 +27,7 @@ class AnnotationSet
 		void modify_entry_in_table( unordered_map<string, set<string> > &table, 
 									HashFile &hashfile, string cmd, string key, string value );
 	
+		void compact_log();
 		void atomic_write(char value);
 		char atomic_read();
 
@@ -35,6 +35,7 @@ class AnnotationSet
 		HashFile A2C_File, C2A_File;	
 		LogFile Log;
 		unordered_map<string, set<string> > A2C_Table, C2A_Table;
+		unordered_map<string, string> Dirty_Cache_Table;
 };
 
 void file_copy(const char *filename1, const char *filename2)
@@ -113,7 +114,9 @@ void AnnotationSet::modify_entry(string cmd, string A, string C, bool writeLog)
 	modify_entry_in_table(A2C_Table, A2C_File, cmd, A, C);
 	modify_entry_in_table(C2A_Table, C2A_File, cmd, C, A);
 
-	
+	string key = A + C;
+	Dirty_Cache_Table[key] = cmd;
+
 	// record action to log, except if we are initializing
 	if(writeLog)
 		Log.addEntry(cmd, A, C);
@@ -177,7 +180,7 @@ void AnnotationSet::commit_to_disk()
 	string log_backup_filename = Log.getFilename() + ".bak";
 
 	//in this implementation, logfile MUST be compacted for commit to properly work
-	Log.compact();
+	compact_log();
 
 	//commit our on-disk hashtables to a temp file
 	A2C_File.commit(A2C_temp_filename, Log, false);
@@ -202,4 +205,21 @@ void AnnotationSet::commit_to_disk()
 
 }
 
+void AnnotationSet::compact_log()
+{
+	LogFile log_temp(Log.getFilename() + ".tmp");
+	unordered_map<string, string>::iterator it;
+
+	for(it = Dirty_Cache_Table.begin(); it != Dirty_Cache_Table.end(); it++)
+	{
+		string A = it->first.substr(0, SHA_WIDTH);
+		string C = it->first.substr(SHA_WIDTH, SHA_WIDTH);
+		string cmd = it->second;
+
+		log_temp.addEntry(cmd, A, C);
+	}
+
+	rename(log_temp.getFilename().c_str(), Log.getFilename().c_str());
+
+}
 
