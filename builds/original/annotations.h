@@ -10,6 +10,22 @@
 using namespace std;
 using namespace tr1;
 
+
+// a cacheLine is associated to a particular A,C pair
+typedef struct
+{
+	// state defined as
+	// 0: not present
+	// 1: present
+
+	// records whether this was in the hash-file
+	int file_state;
+
+	// records whether this is in memory
+	int memory_state;
+
+}	CacheLine;
+
 class AnnotationSet
 {
 	public:
@@ -24,7 +40,7 @@ class AnnotationSet
 	private:
 		set<string>& hash_lookup(string, unordered_map<string, set<string> > &map, HashFile &h);
 		void modify_entry(string cmd, string A, string C, bool writeLog = true);
-		void modify_entry_in_table( unordered_map<string, set<string> > &table, 
+		void modify_entry_in_table( unordered_map<string, set<string> > &table, string cache_key, 
 									HashFile &hashfile, string cmd, string key, string value );
 	
 		void compact_log();
@@ -34,8 +50,8 @@ class AnnotationSet
 		string directory_path, atomic_log_filename;
 		HashFile A2C_File, C2A_File;	
 		LogFile Log;
-		unordered_map<string, set<string> > A2C_Table, C2A_Table;
-		unordered_map<string, string> Dirty_Cache_Table;
+		unordered_map<string, set<string> > A2C_Memory_Map, C2A_Memory_Map;
+		unordered_map<string, CacheLine> Cache_Table;
 };
 
 void file_copy(const char *filename1, const char *filename2)
@@ -97,12 +113,12 @@ void AnnotationSet::unannotate_entry(string A, string C)
 
 set<string> AnnotationSet::list_annotations(string C)
 {
-	return hash_lookup(C, C2A_Table, C2A_File);
+	return hash_lookup(C, C2A_Memory_Map, C2A_File);
 }
 
 set<string> AnnotationSet::list_entries(string A)
 {
-	return hash_lookup(A, A2C_Table, A2C_File);
+	return hash_lookup(A, A2C_Memory_Map, A2C_File);
 }
 
 // Perform either an Annotate or Unannotate action
@@ -111,19 +127,18 @@ set<string> AnnotationSet::list_entries(string A)
 
 void AnnotationSet::modify_entry(string cmd, string A, string C, bool writeLog)
 {
-	modify_entry_in_table(A2C_Table, A2C_File, cmd, A, C);
-	modify_entry_in_table(C2A_Table, C2A_File, cmd, C, A);
-
-	string key = A + C;
-	Dirty_Cache_Table[key] = cmd;
+	modify_entry_in_table(A2C_Memory_Map, A+C, A2C_File, cmd, A, C);
+	modify_entry_in_table(C2A_Memory_Map, A+C, C2A_File, cmd, C, A);
 
 	// record action to log, except if we are initializing
 	if(writeLog)
 		Log.addEntry(cmd, A, C);
 }
 
+// returns whether or not the entry was found
 void AnnotationSet::modify_entry_in_table(
 	unordered_map<string, set<string> > &table, 
+	string cache_key,
 	HashFile &hashfile,
 	string cmd, 
 	string key, 
@@ -132,11 +147,16 @@ void AnnotationSet::modify_entry_in_table(
 {
 	set<string> *list = &hash_lookup(key, table, hashfile);
 
+	if(Cache_Table.count(cache_key) == 0)
+		Cache_Table[cache_key].file_state = list->count(value);
+
 	if(cmd == "A")
-		list->insert(value);
-	
+		list->insert(value).second;
+
 	if(cmd == "U")
 		list->erase(value);
+
+	Cache_Table[cache_key].memory_state = (cmd == "A" ? 1 : 0);	
 }
 
 // return by reference, of in-memory hashtable (populates from disk if necessary)
@@ -208,15 +228,18 @@ void AnnotationSet::commit_to_disk()
 void AnnotationSet::compact_log()
 {
 	LogFile log_temp(Log.getFilename() + ".tmp");
-	unordered_map<string, string>::iterator it;
+	unordered_map<string, CacheLine>::iterator it;
 
-	for(it = Dirty_Cache_Table.begin(); it != Dirty_Cache_Table.end(); it++)
+	for(it = Cache_Table.begin(); it != Cache_Table.end(); it++)
 	{
 		string A = it->first.substr(0, SHA_WIDTH);
 		string C = it->first.substr(SHA_WIDTH, SHA_WIDTH);
-		string cmd = it->second;
+		CacheLine cache_line = it->second;
 
-		log_temp.addEntry(cmd, A, C);
+		if(cache_line.file_state == cache_line.memory_state)
+			continue;
+			
+		log_temp.addEntry(cache_line.file_state == 0 ? "A" : "U", A, C);
 	}
 
 	rename(log_temp.getFilename().c_str(), Log.getFilename().c_str());
