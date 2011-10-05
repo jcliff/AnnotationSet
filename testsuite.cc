@@ -76,16 +76,8 @@ void verifyAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state
 		set<string> messages = AS->list_entries(annotation);
 		set<string> annotations = AS->list_annotations(message);
 
-		if(state == 1)
-		{
-			assert(messages.find(message) != messages.end());
-			assert(annotations.find(annotation) != annotations.end());
-		}
-		else
-		{
-			assert(messages.find(pairs[i].message) == messages.end());
-			assert(annotations.find(pairs[i].annotation) == annotations.end());			
-		}
+		assert(messages.count(message) == state);
+		assert(annotations.count(annotation) == state);
 
 	}	
 }
