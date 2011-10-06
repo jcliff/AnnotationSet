@@ -53,7 +53,6 @@ void HashFile::setPath(string path)
 	getline(file, line);	
 	data_size = atoi(line.c_str());
 	_data_region_ptr = file.tellg();
-
 	file.close();
 }
 
@@ -107,52 +106,40 @@ unsigned long HashFile::get_aligned_index(unsigned long index, int mode = -1)
 set<string> HashFile::get(string key)
 {
 	string curr_key;
-	unsigned long window_low = 0, window_high = data_size - 1, mid_begin, mid_end;
+	unsigned long window_low = 0, window_high = data_size - 1, mid;
 	set<string> list;
-	file.open(filename.c_str(), fstream::in);
 
-	if(key < get_key_at_index(0))
-	{
-		file.close();
-		return list;	
-	}
-
-	if(key > get_key_at_index(data_size-1))
-	{
-		file.close();
+	if(data_size == 0)
 		return list;
-	}
 
-	//window_low and window_high always point to the beginning of a key/value section
-	//mid_begin and mid_end are the encompassing indices of the key corresponding to mid
+	file.open(filename.c_str(), fstream::in);
 	while(window_low <= window_high)
 	{
-		mid_begin = get_aligned_index(window_low + (window_high - window_low) / 2, -1);
-		mid_end = get_aligned_index(window_low + (window_high - window_low) / 2, +1);
-		curr_key = get_key_at_index(mid_begin);
+		mid = window_low + (window_high - window_low) / 2;
+		curr_key = get_key_at_index(mid);
+
 		if(key == curr_key)
-			break;
+		{
+			unsigned int end_idx = get_aligned_index(mid, +1);
+			unsigned int begin_idx = get_aligned_index(mid, -1);
 
-		if(key < curr_key)
-			window_high = get_aligned_index(mid_begin - 1);	
-		else
-			window_low = get_aligned_index(mid_end + 1);
-	}
+			for(unsigned long i=begin_idx; i<= end_idx; i++)
+				list.insert(get_val_at_index(i));
 	
-	//nothing found, return empty list
-	if( key != curr_key)
-	{
-		file.close();
-		return list;
-	}
+			file.close();
+			return list;
+		}
 
-	// generate list of values for specified key
-	for(unsigned long i=mid_begin; i<= mid_end; i++)
-		list.insert(get_val_at_index(i));
+		if(key < curr_key && window_high == 0)
+			break;
+		else if(key < curr_key)
+			window_high = mid - 1;
+		else
+			window_low = mid + 1;
+	}
 
 	file.close();
-
-	return list;	
+	return list;
 }
 
 
