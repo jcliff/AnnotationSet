@@ -6,6 +6,7 @@
 #include <set>
 #include "hashfile.h"
 #include "logfile.h"
+#include "utils.h"
     
 using namespace std;
 using namespace tr1;
@@ -54,19 +55,6 @@ class AnnotationSet
 		unordered_map<string, CacheLine> Cache_Table;
 };
 
-void file_copy(const char *filename1, const char *filename2)
-{
-	char buf;
-
-	fstream f1(filename1, fstream::in);
-    fstream f2(filename2, fstream::out | fstream::trunc);
-
-    while(f1 && f1.get(buf)) 
-    	f2.put(buf);
-
-    f1.close();
-    f2.close();
-}
 
 // type: refers to HashFile implementation. 'btree' or blank
 
