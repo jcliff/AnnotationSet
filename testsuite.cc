@@ -26,7 +26,14 @@ void dir_delete(string dir)
 	{
 		if(strcmp(de->d_name,".") == 0 || strcmp(de->d_name,"..") == 0)
 			continue;
-		unlink((dir + "/" + de->d_name).c_str());	
+
+		if(de->d_type == DT_DIR)
+		{
+			dir_delete(dir + "/" + de->d_name);
+			rmdir(dir.c_str());
+		}
+		else
+			unlink((dir + "/" + de->d_name).c_str());	
 	}
 
 	rmdir(dir.c_str());
