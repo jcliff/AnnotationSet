@@ -29,7 +29,8 @@ class HashFile
 		void copyState(string newDirPath);
 	protected:
 		 unsigned long getIndexOfKey(string key);
-		 
+		 string getKeyAtIndex(unsigned long index);
+
 	private:
 		void write_hash_file(string newFilename, vector<string> &commit_lines);
 		unsigned long get_aligned_index(unsigned long index, int mode);
@@ -170,6 +171,12 @@ unsigned long HashFile::getIndexOfKey(string key)
 		return(get_aligned_index(mid,+1) + 1);
 
 }
+
+string HashFile::getKeyAtIndex(unsigned long index)
+{
+	string line = get_line_at_index(index);	
+	return(line.substr(0,SHA_WIDTH));
+}	
 
 
 void swap(string &first, string &second)
