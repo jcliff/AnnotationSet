@@ -3,8 +3,10 @@
 #include <vector>
 #include <sstream>
 #include <set>
+#include <sys/stat.h>
 #include <assert.h>
 #include "logfile.h"
+#include "utils.h"
 
 #ifndef HASHFILE_H
 #define HASHFILE_H
@@ -18,12 +20,16 @@ class HashFile
 	public:
 		HashFile(){}
 		HashFile(string path);
+		~HashFile();
 		void setPath(string path);
 		string getFilename();
 		set<string> get(string key);
 		void commit(string filename, LogFile &logFile, bool);
 		unsigned long length();
-
+		void copyState(string newDirPath);
+	protected:
+		 unsigned long getIndexOfKey(string key);
+		 
 	private:
 		void write_hash_file(string newFilename, vector<string> &commit_lines);
 		unsigned long get_aligned_index(unsigned long index, int mode);
@@ -43,6 +49,11 @@ HashFile::HashFile(string path)
 	setPath(path);
 }
 
+HashFile::~HashFile()
+{
+	file.close();
+}
+
 void HashFile::setPath(string path)
 {
 	filename = path + "HashFile.txt";
@@ -53,7 +64,7 @@ void HashFile::setPath(string path)
 	getline(file, line);	
 	data_size = atoi(line.c_str());
 	_data_region_ptr = file.tellg();
-	file.close();
+//	file.close();
 }
 
 string HashFile::getFilename()
@@ -105,31 +116,38 @@ unsigned long HashFile::get_aligned_index(unsigned long index, int mode = -1)
 // returns vector of values for specified key; utilizes binary search
 set<string> HashFile::get(string key)
 {
+	set<string> list;
+	int idx = getIndexOfKey(key);
+
+	while(idx < data_size && get_key_at_index(idx) == key)
+	{
+		list.insert(get_val_at_index(idx));
+		idx++;
+	}
+
+	return list;
+}
+
+// returns HashTable index of specified key. If specified key is not
+// present, attempts to return the index of the next highest key, but
+// will always stay in-bounds. 
+
+unsigned long HashFile::getIndexOfKey(string key) 
+{
 	string curr_key;
 	unsigned long window_low = 0, window_high = data_size - 1, mid;
-	set<string> list;
 
 	if(data_size == 0)
-		return list;
-
-	file.open(filename.c_str(), fstream::in);
+		return 0;
+		
 	while(window_low <= window_high)
 	{
 		mid = window_low + (window_high - window_low) / 2;
 		curr_key = get_key_at_index(mid);
 
 		if(key == curr_key)
-		{
-			unsigned int end_idx = get_aligned_index(mid, +1);
-			unsigned int begin_idx = get_aligned_index(mid, -1);
-
-			for(unsigned long i=begin_idx; i<= end_idx; i++)
-				list.insert(get_val_at_index(i));
+			return(get_aligned_index(mid, -1));
 	
-			file.close();
-			return list;
-		}
-
 		if(key < curr_key && window_high == 0)
 			break;
 		else if(key < curr_key)
@@ -138,8 +156,19 @@ set<string> HashFile::get(string key)
 			window_low = mid + 1;
 	}
 
-	file.close();
-	return list;
+	// handle edge conditions
+	if(window_high < 0)
+		return 0;
+	if(window_low > data_size - 1)
+		return data_size - 1;
+
+	// if we are less than current key, simply roll-back index to first key occurrence
+	if(key < curr_key)
+		return(get_aligned_index(mid,-1));
+	// otherwise roll forward to beginning of next key
+	else
+		return(get_aligned_index(mid,+1) + 1);
+
 }
 
 
@@ -149,6 +178,14 @@ void swap(string &first, string &second)
 	first = second;
 	second = tmp;
 }
+
+void HashFile::copyState(string dir_path)
+{
+	file.close();
+	file_copy(filename.c_str(),(dir_path+"HashFile.txt").c_str());
+	file.open(filename.c_str(), fstream::in);
+}
+
 
 //helper function for HashFile::commit; we do not know the final # of entries 
 //in the hashtable until we are done merging
@@ -166,7 +203,7 @@ void HashFile::write_hash_file(string newFilename, vector<string> &commit_lines)
 
     //now write each individual entry
     for(unsigned long i=0; i<commit_lines.size(); i++)
-    	newfile.write(commit_lines[i].c_str(), commit_lines[i].size());
+     	newfile.write(commit_lines[i].c_str(), commit_lines[i].size());
 
     newfile.flush();
     newfile.close();
@@ -174,7 +211,7 @@ void HashFile::write_hash_file(string newFilename, vector<string> &commit_lines)
 
 // perform a merge-sort of the HashFile and LogFile
 // and use the appropriate logic for annotation / unannotations
-void HashFile::commit(string newFilename, LogFile &log, bool reverseLog = false)
+void HashFile::commit(string newfilename, LogFile &log, bool reverseLog = false)
 {
 	vector<Log::command> logEntries = log.readEntries();	
 	if(!reverseLog)
@@ -182,7 +219,7 @@ void HashFile::commit(string newFilename, LogFile &log, bool reverseLog = false)
 	else
 		sort(logEntries.begin(), logEntries.end(), Log::sortC);
 			
-	file.open(filename.c_str(), fstream::in);
+//	file.open(filename.c_str(), fstream::in);
 			
 	unsigned long hashIdx = 0, logIdx = 0;
 	string hashLine, key, val, logLine, logFirst, logSecond;
@@ -250,10 +287,8 @@ void HashFile::commit(string newFilename, LogFile &log, bool reverseLog = false)
 			logIdx++;
 		}
 	}
-
-	file.close();
 	
-	write_hash_file(newFilename, commit_lines);
+	write_hash_file(newfilename, commit_lines);
 }
 
 
