@@ -51,8 +51,8 @@ class LogFile
 {
 	public:
 		LogFile(){}
-		LogFile(string filename);
-		void setFilename(string filename);
+		LogFile(string path);
+		void setPath(string path);
 		string getFilename();
 		vector<Log::command> readEntries();
 		void addEntry(string cmd, string A, string C);
@@ -63,14 +63,14 @@ class LogFile
 		fstream file;	
 };
 
-LogFile::LogFile(std::string fname)
+LogFile::LogFile(std::string path)
 {
-	setFilename(fname);
+	setPath(path);
 }
 
-void LogFile::setFilename(string fname)
+void LogFile::setPath(string path)
 {
-	filename = fname;
+	filename = path + "log.txt";
 }
 
 string LogFile::getFilename()

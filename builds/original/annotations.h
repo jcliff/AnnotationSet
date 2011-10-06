@@ -6,7 +6,7 @@
 #include <set>
 #include "hashfile.h"
 #include "logfile.h"
-     
+    
 using namespace std;
 using namespace tr1;
 
@@ -29,7 +29,7 @@ typedef struct
 class AnnotationSet
 {
 	public:
-		AnnotationSet(string directory_path);
+		AnnotationSet(string directory_path, string hashTableType);
 		void initialize();
 		void annotate_entry(string A, string C);
 		void unannotate_entry(string A, string C);
@@ -68,15 +68,22 @@ void file_copy(const char *filename1, const char *filename2)
     f2.close();
 }
 
-AnnotationSet::AnnotationSet(string dir_path)
+// type: refers to HashFile implementation. 'btree' or blank
+
+AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
 {
 	directory_path = dir_path;
 	mkdir(directory_path.c_str(),0777);
+	mkdir((directory_path + "/A2C/").c_str(),0777);
+	mkdir((directory_path + "/C2A/").c_str(),0777);
+	mkdir((directory_path + "/LOG/").c_str(),0777);
 
 	atomic_log_filename = directory_path + "/" + "atomic_log.txt";
-	A2C_File.setFilename(directory_path + "/" + "A2C.txt");
-	C2A_File.setFilename(directory_path + "/" + "C2A.txt");
-	Log.setFilename(directory_path + "/" + "log.txt");
+
+	Log.setPath(directory_path + "/LOG/");
+	A2C_File.setPath(directory_path + "/A2C/" );
+	C2A_File.setPath(directory_path + "/C2A/" );
+
 }
 
 void AnnotationSet::initialize()

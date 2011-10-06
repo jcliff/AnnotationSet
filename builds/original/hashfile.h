@@ -3,6 +3,7 @@
 #include <vector>
 #include <sstream>
 #include <set>
+#include <assert.h>
 #include "logfile.h"
 
 #ifndef HASHFILE_H
@@ -16,18 +17,19 @@ class HashFile
 {
 	public:
 		HashFile(){}
-		HashFile(string filename);
-		void setFilename(string filename);
+		HashFile(string path);
+		void setPath(string path);
 		string getFilename();
 		set<string> get(string key);
 		void commit(string filename, LogFile &logFile, bool);
 		int length();
+
 	private:
+		void write_hash_file(string newFilename, vector<string> &commit_lines);
 		int get_aligned_index(int index, int mode);
 		string get_line_at_index(int index);
 		string get_key_at_index(int index);
 		string get_val_at_index(int index);
-		void write_hash_file(string newFilename, vector<string> &commit_lines);
 
 		fstream file;
 		string filename;
@@ -35,14 +37,14 @@ class HashFile
 		const static int LINE_WIDTH = SHA_WIDTH * 2 + 2;
 };
 
-HashFile::HashFile(string fname)
+HashFile::HashFile(string path)
 {
-	setFilename(fname);
+	setPath(path);
 }
 
-void HashFile::setFilename(string fname)
+void HashFile::setPath(string path)
 {
-	filename = fname;
+	filename = path + "HashFile.txt";
 	file.open(filename.c_str(), fstream::in );
 
 	// read first line, which encodes data size
@@ -73,8 +75,10 @@ string HashFile::get_line_at_index(int index)
 
 string HashFile::get_key_at_index(int index)
 {
+
 	string line = get_line_at_index(index);
 	return(line.substr(0,SHA_WIDTH));
+
 }
 
 
@@ -89,6 +93,9 @@ string HashFile::get_val_at_index(int index)
 
 int HashFile::get_aligned_index(int index, int mode = -1)
 {
+	assert(index >=0);
+	assert(index < data_size);
+			
 	string key = get_key_at_index(index);
 	while(index >= 0 && index < data_size && get_key_at_index(index) == key)
 		index = index + mode;
@@ -102,6 +109,18 @@ set<string> HashFile::get(string key)
 	int window_low = 0, window_high = data_size - 1, mid_begin, mid_end;
 	set<string> list;
 	file.open(filename.c_str(), fstream::in);
+
+	if(key < get_key_at_index(0))
+	{
+		file.close();
+		return list;	
+	}
+
+	if(key > get_key_at_index(data_size-1))
+	{
+		file.close();
+		return list;
+	}
 
 	//window_low and window_high always point to the beginning of a key/value section
 	//mid_begin and mid_end are the encompassing indices of the key corresponding to mid
@@ -131,6 +150,7 @@ set<string> HashFile::get(string key)
 		list.insert(get_val_at_index(i));
 
 	file.close();
+
 	return list;	
 }
 
