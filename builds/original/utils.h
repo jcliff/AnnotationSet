@@ -1,9 +1,37 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <dirent.h>
 
 #ifndef UTILS_H
 #define UTILS_H
+
+using namespace std;
+
+void dir_delete(string dir)
+{
+	struct dirent *de = NULL;
+	DIR *d = NULL;
+
+	if( (d = opendir(dir.c_str())) == NULL)
+		return;
+
+	while(de = readdir(d))
+	{
+		if(strcmp(de->d_name,".") == 0 || strcmp(de->d_name,"..") == 0)
+			continue;
+
+		if(de->d_type == DT_DIR)
+		{
+			dir_delete(dir + "/" + de->d_name);
+			rmdir(dir.c_str());
+		}
+		else
+			unlink((dir + "/" + de->d_name).c_str());	
+	}
+
+	rmdir(dir.c_str());
+}
 
 void file_copy(const char *filename1, const char *filename2)
 {
