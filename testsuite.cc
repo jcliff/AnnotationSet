@@ -1,9 +1,10 @@
 #include <iostream>
 #include <string>
 #include <assert.h>
-#include <dirent.h>
+#include <fstream>
 
 #include "annotations.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -12,32 +13,6 @@ typedef struct
 	string annotation;
 	string message;	
 } AnnotationPair;
-
-
-void dir_delete(string dir)
-{
-	struct dirent *de = NULL;
-	DIR *d = NULL;
-
-	if( (d = opendir(dir.c_str())) == NULL)
-		return;
-
-	while(de = readdir(d))
-	{
-		if(strcmp(de->d_name,".") == 0 || strcmp(de->d_name,"..") == 0)
-			continue;
-
-		if(de->d_type == DT_DIR)
-		{
-			dir_delete(dir + "/" + de->d_name);
-			rmdir(dir.c_str());
-		}
-		else
-			unlink((dir + "/" + de->d_name).c_str());	
-	}
-
-	rmdir(dir.c_str());
-}
 
 
 void randomizePairs(vector<AnnotationPair> &pairs)
@@ -93,7 +68,7 @@ void verifyAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state
 //where 1: annotate, 0: unannotate
 void setAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state)
 {
-	randomizePairs(pairs);
+	//randomizePairs(pairs);
 
 	for(int i=0; i<pairs.size(); i++)
 	{
@@ -141,13 +116,14 @@ int main(int argc, char *argv[])
 		cout << "USAGE: [A2C SNAPSHOT FILE]" << endl;
 		return 0;
 	}
-
+	
 	vector<AnnotationPair> pairs = read_initial_annotations(string(argv[1]));
 
 	//initialize system to blank state
 	dir_delete(test_bed_directory);
 
 	AnnotationSet *AS = new AnnotationSet(test_bed_directory);
+
 	AS->initialize();
 
 	cout<<"testing brand-new system..." << endl;
@@ -189,6 +165,7 @@ int main(int argc, char *argv[])
 
 	AS = new AnnotationSet(test_bed_directory);
 	AS->initialize();
+
 
 	cout<<"verifying fully-deleted system booted from log..." << endl;
 	verifyAllEntries(AS, pairs, 0);
