@@ -22,18 +22,19 @@ class HashFile
 		string getFilename();
 		set<string> get(string key);
 		void commit(string filename, LogFile &logFile, bool);
-		int length();
+		unsigned long length();
 
 	private:
 		void write_hash_file(string newFilename, vector<string> &commit_lines);
-		int get_aligned_index(int index, int mode);
-		string get_line_at_index(int index);
-		string get_key_at_index(int index);
-		string get_val_at_index(int index);
+		unsigned long get_aligned_index(unsigned long index, int mode);
+		string get_line_at_index(unsigned long index);
+		string get_key_at_index(unsigned long index);
+		string get_val_at_index(unsigned long index);
 
 		fstream file;
 		string filename;
-		int _data_region_ptr, data_size;		
+		int _data_region_ptr;
+		unsigned long data_size;		
 		const static int LINE_WIDTH = SHA_WIDTH * 2 + 2;
 };
 
@@ -60,12 +61,12 @@ string HashFile::getFilename()
 {
 	return filename;
 }
-int HashFile::length()
+unsigned long HashFile::length()
 {
 	return data_size;
 }
 
-string HashFile::get_line_at_index(int index)
+string HashFile::get_line_at_index(unsigned long index)
 {
 	string line;
 	file.seekg(_data_region_ptr + LINE_WIDTH * index);
@@ -73,7 +74,7 @@ string HashFile::get_line_at_index(int index)
 	return line;
 }
 
-string HashFile::get_key_at_index(int index)
+string HashFile::get_key_at_index(unsigned long index)
 {
 
 	string line = get_line_at_index(index);
@@ -82,7 +83,7 @@ string HashFile::get_key_at_index(int index)
 }
 
 
-string HashFile::get_val_at_index(int index)
+string HashFile::get_val_at_index(unsigned long index)
 {
 	string line = get_line_at_index(index);
 	return(line.substr(SHA_WIDTH + 1,SHA_WIDTH));
@@ -91,7 +92,7 @@ string HashFile::get_val_at_index(int index)
 // mode -1: get index corresponding to beginning of this key entry
 // mode +1: get index corresponding to end of this key entry
 
-int HashFile::get_aligned_index(int index, int mode = -1)
+unsigned long HashFile::get_aligned_index(unsigned long index, int mode = -1)
 {
 	assert(index >=0);
 	assert(index < data_size);
@@ -106,7 +107,7 @@ int HashFile::get_aligned_index(int index, int mode = -1)
 set<string> HashFile::get(string key)
 {
 	string curr_key;
-	int window_low = 0, window_high = data_size - 1, mid_begin, mid_end;
+	unsigned long window_low = 0, window_high = data_size - 1, mid_begin, mid_end;
 	set<string> list;
 	file.open(filename.c_str(), fstream::in);
 
@@ -146,7 +147,7 @@ set<string> HashFile::get(string key)
 	}
 
 	// generate list of values for specified key
-	for(int i=mid_begin; i<= mid_end; i++)
+	for(unsigned long i=mid_begin; i<= mid_end; i++)
 		list.insert(get_val_at_index(i));
 
 	file.close();
@@ -177,7 +178,7 @@ void HashFile::write_hash_file(string newFilename, vector<string> &commit_lines)
     newfile.write(length.c_str(), length.size());
 
     //now write each individual entry
-    for(int i=0; i<commit_lines.size(); i++)
+    for(unsigned long i=0; i<commit_lines.size(); i++)
     	newfile.write(commit_lines[i].c_str(), commit_lines[i].size());
 
     newfile.flush();
@@ -196,7 +197,7 @@ void HashFile::commit(string newFilename, LogFile &log, bool reverseLog = false)
 			
 	file.open(filename.c_str(), fstream::in);
 			
-	int hashIdx = 0, logIdx = 0;
+	unsigned long hashIdx = 0, logIdx = 0;
 	string hashLine, key, val, logLine, logFirst, logSecond;
 	vector<string> commit_lines;
 
