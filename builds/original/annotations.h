@@ -66,6 +66,10 @@ AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
 	mkdir((directory_path + "/A2C/").c_str(),0777);
 	mkdir((directory_path + "/C2A/").c_str(),0777);
 	mkdir((directory_path + "/LOG/").c_str(),0777);
+	mkdir((directory_path + "/A2C-bak/").c_str(),0777);
+	mkdir((directory_path + "/C2A-bak/").c_str(),0777);
+	mkdir((directory_path + "/A2C-tmp/").c_str(),0777);
+	mkdir((directory_path + "/C2A-tmp/").c_str(),0777);
 
 	atomic_log_filename = directory_path + "/" + "atomic_log.txt";
 
@@ -87,8 +91,9 @@ void AnnotationSet::initialize()
 
 	if(atomic_read() == '1')
 	{
-		rename((A2C_File->getFilename() + ".bak").c_str(), A2C_File->getFilename().c_str());
-		rename((C2A_File->getFilename() + ".bak").c_str(), C2A_File->getFilename().c_str());
+		A2C_File->moveState(directory_path + "/A2C-bak/", directory_path + "/A2C/");
+		C2A_File->moveState(directory_path + "/C2A-bak/", directory_path + "/C2A/");
+		
 		rename((Log.getFilename() + ".bak").c_str(), Log.getFilename().c_str());
 
 		atomic_write('0');
@@ -194,31 +199,28 @@ void AnnotationSet::atomic_write(char state)
 
 void AnnotationSet::commit_to_disk()
 {
-	string A2C_temp_filename = A2C_File->getFilename() + ".tmp";
-	string C2A_temp_filename = C2A_File->getFilename() + ".tmp";
 	
-	string A2C_backup_filename = A2C_File->getFilename() + ".bak";
-	string C2A_backup_filename = C2A_File->getFilename() + ".bak";
 	string log_backup_filename = Log.getFilename() + ".bak";
 
 	//in this implementation, logfile MUST be compacted for commit to properly work
 	compact_log();
 
 	//commit our on-disk hashtables to a temp file
-	A2C_File->commit(A2C_temp_filename, Log, false);
-	C2A_File->commit(C2A_temp_filename, Log, true);
+	A2C_File->commit(directory_path + "/A2C-tmp/", Log, false);
+	C2A_File->commit(directory_path + "/C2A-tmp/", Log, true);
 
 	//copy originals to backup files (for rollback purposes)
-	file_copy(A2C_File->getFilename().c_str(), A2C_backup_filename.c_str());
-	file_copy(C2A_File->getFilename().c_str(), C2A_backup_filename.c_str());
+	A2C_File->copyState(directory_path + "/A2C-bak/");
+	C2A_File->copyState(directory_path + "/C2A-bak/");
+
 	file_copy(Log.getFilename().c_str(), log_backup_filename.c_str());
 
 	atomic_write('1');
 
 	/////////////////// UNCOMMENT BELOW 3 LINES //////////////////
 	//
-	rename(A2C_temp_filename.c_str(), A2C_File->getFilename().c_str());
-	rename(C2A_temp_filename.c_str(), C2A_File->getFilename().c_str());
+	A2C_File->moveState(directory_path + "/A2C-tmp/", directory_path + "/A2C/");
+	C2A_File->moveState(directory_path + "/C2A-tmp/", directory_path + "/C2A/");
 	Log.clear();
 	// 
 	//////////////////////////////////////////////////////////////

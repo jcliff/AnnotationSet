@@ -27,6 +27,8 @@ class HashFile
 		void commit(string filename, LogFile &logFile, bool);
 		unsigned long length();
 		void copyState(string newDirPath);
+		void moveState(string dir_path_init, string dir_path_final);
+
 	protected:
 		 unsigned long getIndexOfKey(string key);
 		 string getKeyAtIndex(unsigned long index);
@@ -193,11 +195,18 @@ void HashFile::copyState(string dir_path)
 	file.open(filename.c_str(), fstream::in);
 }
 
+void HashFile::moveState(string dir_path_init, string dir_path_final)
+{
+	file.close();
+	rename((dir_path_init + "HashFile.txt").c_str(), (dir_path_final + "HashFile.txt").c_str());
+	file.open((dir_path_final + "HashFile.txt").c_str(), fstream::in);
+}
 
 //helper function for HashFile::commit; we do not know the final # of entries 
 //in the hashtable until we are done merging
-void HashFile::write_hash_file(string newFilename, vector<string> &commit_lines)
+void HashFile::write_hash_file(string newPath, vector<string> &commit_lines)
 {
+	string newFilename = newPath + "HashFile.txt";
 	fstream newfile(newFilename.c_str(), fstream::out | fstream::trunc);
 	
 	stringstream ss;
@@ -218,7 +227,7 @@ void HashFile::write_hash_file(string newFilename, vector<string> &commit_lines)
 
 // perform a merge-sort of the HashFile and LogFile
 // and use the appropriate logic for annotation / unannotations
-void HashFile::commit(string newfilename, LogFile &log, bool reverseLog = false)
+void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 {
 	vector<Log::command> logEntries = log.readEntries();	
 	if(!reverseLog)
@@ -295,7 +304,7 @@ void HashFile::commit(string newfilename, LogFile &log, bool reverseLog = false)
 		}
 	}
 	
-	write_hash_file(newfilename, commit_lines);
+	write_hash_file(newPath, commit_lines);
 }
 
 
