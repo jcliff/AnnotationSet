@@ -31,6 +31,7 @@ class AnnotationSet
 {
 	public:
 		AnnotationSet(string directory_path, string hashTableType);
+		~AnnotationSet();
 		void initialize();
 		void annotate_entry(string A, string C);
 		void unannotate_entry(string A, string C);
@@ -39,17 +40,17 @@ class AnnotationSet
 		void commit_to_disk();
 
 	private:
-		set<string>& hash_lookup(string, unordered_map<string, set<string> > &map, HashFile &h);
+		set<string>& hash_lookup(string, unordered_map<string, set<string> > &map, HashFile *h);
 		void modify_entry(string cmd, string A, string C, bool writeLog = true);
 		void modify_entry_in_table( unordered_map<string, set<string> > &table, string cache_key, 
-									HashFile &hashfile, string cmd, string key, string value );
+									HashFile *hashfile, string cmd, string key, string value );
 	
 		void compact_log();
 		void atomic_write(char value);
 		char atomic_read();
 
 		string directory_path, atomic_log_filename;
-		HashFile A2C_File, C2A_File;	
+		HashFile *A2C_File, *C2A_File;	
 		LogFile Log;
 		unordered_map<string, set<string> > A2C_Memory_Map, C2A_Memory_Map;
 		unordered_map<string, CacheLine> Cache_Table;
@@ -69,9 +70,15 @@ AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
 	atomic_log_filename = directory_path + "/" + "atomic_log.txt";
 
 	Log.setPath(directory_path + "/LOG/");
-	A2C_File.setPath(directory_path + "/A2C/" );
-	C2A_File.setPath(directory_path + "/C2A/" );
+	A2C_File = new HashFile(directory_path + "/A2C/" );
+	C2A_File = new HashFile(directory_path + "/C2A/" );
 
+}
+
+AnnotationSet::~AnnotationSet()
+{
+	delete(A2C_File);
+	delete(C2A_File);
 }
 
 void AnnotationSet::initialize()
@@ -80,8 +87,8 @@ void AnnotationSet::initialize()
 
 	if(atomic_read() == '1')
 	{
-		rename((A2C_File.getFilename() + ".bak").c_str(), A2C_File.getFilename().c_str());
-		rename((C2A_File.getFilename() + ".bak").c_str(), C2A_File.getFilename().c_str());
+		rename((A2C_File->getFilename() + ".bak").c_str(), A2C_File->getFilename().c_str());
+		rename((C2A_File->getFilename() + ".bak").c_str(), C2A_File->getFilename().c_str());
 		rename((Log.getFilename() + ".bak").c_str(), Log.getFilename().c_str());
 
 		atomic_write('0');
@@ -134,7 +141,7 @@ void AnnotationSet::modify_entry(string cmd, string A, string C, bool writeLog)
 void AnnotationSet::modify_entry_in_table(
 	unordered_map<string, set<string> > &table, 
 	string cache_key,
-	HashFile &hashfile,
+	HashFile *hashfile,
 	string cmd, 
 	string key, 
 	string value
@@ -158,12 +165,12 @@ void AnnotationSet::modify_entry_in_table(
 set<string>& AnnotationSet::hash_lookup(
 	string key,
 	unordered_map<string, set<string> > &hash_map,
-	HashFile &hash_file
+	HashFile *hash_file
 	)
 {
 	// read annotation from disk via binary search, and update in-memory table
 	if(hash_map.count(key) == 0)
-		hash_map[key] = hash_file.get(key);
+		hash_map[key] = hash_file->get(key);
 
 	return hash_map[key];
 }
@@ -187,36 +194,42 @@ void AnnotationSet::atomic_write(char state)
 
 void AnnotationSet::commit_to_disk()
 {
-	string A2C_temp_filename = A2C_File.getFilename() + ".tmp";
-	string C2A_temp_filename = C2A_File.getFilename() + ".tmp";
+	string A2C_temp_filename = A2C_File->getFilename() + ".tmp";
+	string C2A_temp_filename = C2A_File->getFilename() + ".tmp";
 	
-	string A2C_backup_filename = A2C_File.getFilename() + ".bak";
-	string C2A_backup_filename = C2A_File.getFilename() + ".bak";
+	string A2C_backup_filename = A2C_File->getFilename() + ".bak";
+	string C2A_backup_filename = C2A_File->getFilename() + ".bak";
 	string log_backup_filename = Log.getFilename() + ".bak";
 
 	//in this implementation, logfile MUST be compacted for commit to properly work
 	compact_log();
 
 	//commit our on-disk hashtables to a temp file
-	A2C_File.commit(A2C_temp_filename, Log, false);
-	C2A_File.commit(C2A_temp_filename, Log, true);
+	A2C_File->commit(A2C_temp_filename, Log, false);
+	C2A_File->commit(C2A_temp_filename, Log, true);
 
 	//copy originals to backup files (for rollback purposes)
-	file_copy(A2C_File.getFilename().c_str(), A2C_backup_filename.c_str());
-	file_copy(C2A_File.getFilename().c_str(), C2A_backup_filename.c_str());
+	file_copy(A2C_File->getFilename().c_str(), A2C_backup_filename.c_str());
+	file_copy(C2A_File->getFilename().c_str(), C2A_backup_filename.c_str());
 	file_copy(Log.getFilename().c_str(), log_backup_filename.c_str());
 
 	atomic_write('1');
 
 	/////////////////// UNCOMMENT BELOW 3 LINES //////////////////
 	//
-	rename(A2C_temp_filename.c_str(), A2C_File.getFilename().c_str());
-	rename(C2A_temp_filename.c_str(), C2A_File.getFilename().c_str());
+	rename(A2C_temp_filename.c_str(), A2C_File->getFilename().c_str());
+	rename(C2A_temp_filename.c_str(), C2A_File->getFilename().c_str());
 	Log.clear();
 	// 
 	//////////////////////////////////////////////////////////////
 	
 	atomic_write('0');
+
+	delete(A2C_File);
+	delete(C2A_File);
+
+	A2C_File = new HashFile(directory_path + "/A2C/");
+	C2A_File = new HashFile(directory_path + "/C2A/");
 
 }
 
