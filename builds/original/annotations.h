@@ -7,6 +7,7 @@
 #include "hashfile.h"
 #include "logfile.h"
 #include "utils.h"
+#include "btreefile.h"
     
 using namespace std;
 using namespace tr1;
@@ -74,9 +75,18 @@ AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
 	atomic_log_filename = directory_path + "/" + "atomic_log.txt";
 
 	Log.setPath(directory_path + "/LOG/");
-	A2C_File = new HashFile(directory_path + "/A2C/" );
-	C2A_File = new HashFile(directory_path + "/C2A/" );
 
+	if(hashTableType == string("BTreeFile"))
+	{
+		A2C_File = new BTreeFile(directory_path + "/A2C/");
+		C2A_File = new BTreeFile(directory_path + "/C2A/");
+	}
+	else
+	{
+
+		A2C_File = new HashFile(directory_path + "/A2C/" );
+		C2A_File = new HashFile(directory_path + "/C2A/" );
+	}
 }
 
 AnnotationSet::~AnnotationSet()
@@ -215,23 +225,13 @@ void AnnotationSet::commit_to_disk()
 
 	file_copy(Log.getFilename().c_str(), log_backup_filename.c_str());
 
+	///////////////////////// ATOMIC ACTION ////////////////////////////////////
 	atomic_write('1');
-
-	/////////////////// UNCOMMENT BELOW 3 LINES //////////////////
-	//
 	A2C_File->moveState(directory_path + "/A2C-tmp/", directory_path + "/A2C/");
 	C2A_File->moveState(directory_path + "/C2A-tmp/", directory_path + "/C2A/");
-	Log.clear();
-	// 
-	//////////////////////////////////////////////////////////////
-	
+	Log.clear();	
 	atomic_write('0');
-
-	delete(A2C_File);
-	delete(C2A_File);
-
-	A2C_File = new HashFile(directory_path + "/A2C/");
-	C2A_File = new HashFile(directory_path + "/C2A/");
+	////////////////////////////////////////////////////////////////////////////
 
 }
 

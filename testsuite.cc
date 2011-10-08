@@ -14,7 +14,6 @@ typedef struct
 	string message;	
 } AnnotationPair;
 
-
 void randomizePairs(vector<AnnotationPair> &pairs)
 {
 	for(int i = pairs.size()-1; i>=1 ; i--)
@@ -110,19 +109,22 @@ void runLiveVerification(AnnotationSet *AS, vector<AnnotationPair> pairs)
 int main(int argc, char *argv[]) 
 {
 	string test_bed_directory("testbed");
+	string hashTableType("");
 
 	if(argc < 2)
 	{
 		cout << "USAGE: [A2C SNAPSHOT FILE]" << endl;
 		return 0;
 	}
+	if(argc == 3)
+		hashTableType = string(argv[2]);
 	
 	vector<AnnotationPair> pairs = read_initial_annotations(string(argv[1]));
 
 	//initialize system to blank state
 	dir_delete(test_bed_directory);
 
-	AnnotationSet *AS = new AnnotationSet(test_bed_directory);
+	AnnotationSet *AS = new AnnotationSet(test_bed_directory, hashTableType);
 
 	AS->initialize();
 
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
 
 	delete(AS);
 
-	AS = new AnnotationSet(test_bed_directory);
+	AS = new AnnotationSet(test_bed_directory, hashTableType);
 	AS->initialize();
 
 	cout<<"verifying initial bootup from log..." << endl;
@@ -143,10 +145,11 @@ int main(int argc, char *argv[])
 	runLiveVerification(AS, pairs);
 	cout<<"done."<<endl<<endl;
 
+	setAllEntries(AS, pairs, 1);
 	AS->commit_to_disk();
 	delete(AS);
 
-	AS = new AnnotationSet(test_bed_directory);
+	AS = new AnnotationSet(test_bed_directory, hashTableType);
 	AS->initialize();
 
 	cout<<"verifying initial bootup from commited hashfile..." << endl;
@@ -163,7 +166,7 @@ int main(int argc, char *argv[])
 	setAllEntries(AS, pairs, 0);
 	delete(AS);
 
-	AS = new AnnotationSet(test_bed_directory);
+	AS = new AnnotationSet(test_bed_directory, hashTableType);
 	AS->initialize();
 
 
@@ -174,7 +177,7 @@ int main(int argc, char *argv[])
 	AS->commit_to_disk();
 	delete(AS);
 
-	AS = new AnnotationSet(test_bed_directory);
+	AS = new AnnotationSet(test_bed_directory, hashTableType);
 	AS->initialize();
 	cout<<"verifying fully-deleted system booted from commited hashfile..."<<endl;
 	verifyAllEntries(AS, pairs, 0);

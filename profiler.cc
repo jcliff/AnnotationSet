@@ -5,6 +5,7 @@
 #include <time.h>
 #include <set>
 
+#include "utils.h"
 #include "annotations.h"
 
 using namespace std;
@@ -59,31 +60,6 @@ vector<AnnotationPair> read_initial_annotations(string filename)
 	return pairs;
 }
 
-void dir_delete(string dir)
-{
-	struct dirent *de = NULL;
-	DIR *d = NULL;
-
-	if( (d = opendir(dir.c_str())) == NULL)
-		return;
-
-	while(de = readdir(d))
-	{
-		if(strcmp(de->d_name,".") == 0 || strcmp(de->d_name,"..") == 0)
-			continue;
-
-		if(de->d_type == DT_DIR)
-		{
-			dir_delete(dir + "/" + de->d_name);
-			rmdir(dir.c_str());
-		}
-		else
-			unlink((dir + "/" + de->d_name).c_str());	
-	}
-
-	rmdir(dir.c_str());
-}
-
 // pure read performance 
 // mode = 1 : list_entries
 // mode = 2 : list_annotations
@@ -114,6 +90,7 @@ int main(int argc, char *argv[])
 {
 	string test_bed_directory("testbed");
 	set<string> annotations, messages;
+	string hashTableType("");
 
 	if(argc < 2)
 	{
@@ -121,12 +98,16 @@ int main(int argc, char *argv[])
 		return 0;
 	}	
 
+	if(argc > 2)
+		hashTableType = string("BTreeFile");
+
 	//initialize system to blank state
 	dir_delete(test_bed_directory);
 
 	vector<AnnotationPair> pairs = read_initial_annotations(string(argv[1]));
-	AnnotationSet *AS = new AnnotationSet(test_bed_directory);
+	AnnotationSet *AS = new AnnotationSet(test_bed_directory, hashTableType);
 
+	cout << "initializing... "; cout.flush();
 	for(int i=0; i<pairs.size(); i++)
 	{
 		AS->annotate_entry(pairs[i].annotation, pairs[i].message);
@@ -140,8 +121,9 @@ int main(int argc, char *argv[])
 
 	AS->commit_to_disk();
 	delete(AS);
-
-	AS = new AnnotationSet(test_bed_directory);
+	cout <<"done." << endl;
+	cout <<"running profiler... " << endl; cout.flush();
+	AS = new AnnotationSet(test_bed_directory, hashTableType);
 	AS->initialize();
 
 	int entries_time = readSystem(AS, randAnnotations, 1);
