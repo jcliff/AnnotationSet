@@ -23,14 +23,14 @@ class BTreeFile : public HashFile
 		void moveState(string dir_path_init, string dir_path_final);
 		void copyState(string newPath);
 	private:
-		void createTableLine(string newPath, string mask, int &line_cursor);
-		string getLineInTable(int line);
-		string getEntryInTable(int line, int line_index);
+		void createTableLine(string newPath, string mask, unsigned long &line_cursor);
+		string getLineInTable(unsigned long line);
+		string getEntryInTable(unsigned long line, int line_index);
 		unsigned long getEntryLeftNumber(string entry);
 		unsigned long getEntryRightNumber(string entry);
 
-		void write_header(string newPath, int n, bool truncate);
-		void write_line_at_index(string newPath, int index, string line);
+		void write_header(string newPath, unsigned long size, bool truncate);
+		void write_line_at_index(string newPath, unsigned long index, string line);
 
 		string filename;
 		fstream file;
@@ -39,13 +39,16 @@ class BTreeFile : public HashFile
 		const static int MASK_SIZE = 2, NUM_WIDTH = 10, ENTRY_WIDTH = 2 * NUM_WIDTH + 2;
 
 		int min_children_per_node;
-		int LINE_WIDTH, _table_region_ptr, table_size, last_table_line_written;
+		int LINE_WIDTH, _table_region_ptr;
+		unsigned long table_size, last_table_line_written;
 };
 
 
 BTreeFile::BTreeFile(string path, int minChildrenPerNode = 32) : HashFile()
 {
 	min_children_per_node = minChildrenPerNode;
+	LINE_WIDTH = ENTRY_WIDTH * pow(16.0, (int)MASK_SIZE) + 1;
+
 	setPath(path);
 }
 
@@ -60,8 +63,6 @@ void BTreeFile::setPath(string Path)
 	HashFile::setPath(path);
 	filename = path + "BTreeFile.txt";
 
-	LINE_WIDTH = ENTRY_WIDTH * pow(16.0, (int)MASK_SIZE) + 1;
-
 	file.open(filename.c_str(), fstream::in );
 
 	// read first line, which encodes table size
@@ -72,9 +73,9 @@ void BTreeFile::setPath(string Path)
 	_table_region_ptr = file.tellg();
 }
 
-void BTreeFile::write_header(string newPath, int n, bool truncate)
+void BTreeFile::write_header(string newPath, unsigned long size, bool truncate)
 {
-	string tableSize = convertIntToString(n);
+	string tableSize = convertIntToString(size);
 	tableSize.append(LINE_WIDTH - tableSize.length() - 1, ' ');
 	tableSize += "\n";
 
@@ -97,7 +98,7 @@ void BTreeFile::write_header(string newPath, int n, bool truncate)
 // is out of bounds with regards to the current file size, add the appropriate
 // empty spacing
 
-void BTreeFile::write_line_at_index(string newPath, int index, string line)
+void BTreeFile::write_line_at_index(string newPath, unsigned long index, string line)
 {
 	assert(line.size() == LINE_WIDTH);
 
@@ -129,7 +130,7 @@ void BTreeFile::write_line_at_index(string newPath, int index, string line)
 }
 
 
-string BTreeFile::getLineInTable(int line_index)
+string BTreeFile::getLineInTable(unsigned long line_index)
 {
 	string line;
 	file.seekg(_table_region_ptr + line_index * LINE_WIDTH);
@@ -137,7 +138,7 @@ string BTreeFile::getLineInTable(int line_index)
 	return line;
 }
 
-string BTreeFile::getEntryInTable(int line_num, int line_index)
+string BTreeFile::getEntryInTable(unsigned long line_num, int line_index)
 {
 	string line = getLineInTable(line_num);
 	string entry = line.substr(line_index * ENTRY_WIDTH, ENTRY_WIDTH);
@@ -166,7 +167,8 @@ unsigned long BTreeFile::getEntryLeftNumber(string entry)
 set<string> BTreeFile::get(string key)
 {
 	set<string> list;
-	int mask_index = 0, table_line = 0, table_index, begin_index, end_index;
+	int mask_index = 0, table_index;
+	unsigned long table_line = 0;
 	string masked_key, table_entry;
 
 	if(table_size == 0)
@@ -192,10 +194,10 @@ set<string> BTreeFile::get(string key)
 	return HashFile::get(key, low, high);
 }
 
-void BTreeFile::createTableLine(string newPath, string mask, int &line_cursor)
+void BTreeFile::createTableLine(string newPath, string mask, unsigned long &line_cursor)
 {	
 	// line_cursor lets us know the next free line available in the table
-	int curr_line = line_cursor;
+	unsigned long curr_line_pos = line_cursor;
 	line_cursor++;
 	string line;
 
@@ -253,7 +255,7 @@ void BTreeFile::createTableLine(string newPath, string mask, int &line_cursor)
 
 	line += "\n";
 
-	write_line_at_index(newPath, curr_line, line);
+	write_line_at_index(newPath, curr_line_pos, line);
 }
 
 void BTreeFile::commit(string newPath, LogFile &log, bool reverseLog = false)
@@ -262,7 +264,7 @@ void BTreeFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 	HashFile::commit(newPath, log, reverseLog);
 	HashFile::setPath(newPath);
 
-	int line_cursor = 0;
+	unsigned long line_cursor = 0;
 	last_table_line_written = -1;
 
 	//save space for the table-size, which goes on the first-line
