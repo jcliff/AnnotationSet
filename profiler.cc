@@ -123,7 +123,11 @@ int main(int argc, char *argv[])
 	delete(AS);
 	cout <<"done." << endl;
 	cout <<"running profiler... " << endl; cout.flush();
-	AS = new AnnotationSet(test_bed_directory, hashTableType);
+
+	// run both the default implementation (vanilla HashFile)
+	// as well as the BTreeFile implementation
+
+	AS = new AnnotationSet(test_bed_directory);
 	AS->initialize();
 
 	int entries_time = readSystem(AS, randAnnotations, 1);
@@ -131,6 +135,20 @@ int main(int argc, char *argv[])
 
 	cout<<"list_entries (cycles): " << entries_time << endl;
 	cout<<"list_annotations (cycles): " << annotations_time << endl;
+
+	delete(AS);
+
+	if(hashTableType == "BTreeFile")
+	{
+		AS = new AnnotationSet(test_bed_directory, hashTableType);
+		AS->initialize();
+
+		entries_time = readSystem(AS, randAnnotations, 1);
+		annotations_time = readSystem(AS, randMessages, 2);
+
+		cout<<"BTreeFile - list_entries (cycles): " << entries_time << endl;
+		cout<<"BTreeFile - list_annotations (cycles): " << annotations_time << endl;
+	}
 
 	return 0;
 }
