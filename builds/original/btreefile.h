@@ -36,7 +36,7 @@ class BTreeFile : public HashFile
 		fstream file;
 		string path;
 
-		const static int MASK_SIZE = 2, ENTRY_WIDTH = 22, NUM_WIDTH = (ENTRY_WIDTH - 2 )/2;
+		const static int MASK_SIZE = 2, NUM_WIDTH = 10, ENTRY_WIDTH = 2 * NUM_WIDTH + 2;
 
 		int min_children_per_node;
 		int LINE_WIDTH, _table_region_ptr, table_size, last_table_line_written;
@@ -147,8 +147,7 @@ string BTreeFile::getEntryInTable(int line_num, int line_index)
 unsigned long BTreeFile::getEntryRightNumber(string entry)
 {
 	unsigned long n;
-	string num = entry.substr(2 + NUM_WIDTH, NUM_WIDTH)
-	;
+	string num = entry.substr(2 + NUM_WIDTH, NUM_WIDTH);
 	stringstream(num) >> n;
 	return(n);
 }
@@ -293,5 +292,5 @@ void BTreeFile::moveState(string dir_path_init, string dir_path_final)
 
 	file.close();
 	rename((dir_path_init + "BTreeFile.txt").c_str(), (dir_path_final + "BTreeFile.txt").c_str());
-	file.open((dir_path_final + "BTreeFile.txt").c_str(), fstream::in);
+	setPath(dir_path_final);
 }
