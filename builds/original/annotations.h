@@ -63,6 +63,7 @@ class AnnotationSet
 AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
 {
 	directory_path = dir_path;
+
 	mkdir(directory_path.c_str(),0777);
 	mkdir((directory_path + "/A2C/").c_str(),0777);
 	mkdir((directory_path + "/C2A/").c_str(),0777);

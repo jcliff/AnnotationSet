@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
 	if(argc == 3)
 		hashTableType = string(argv[2]);
 	
+
 	vector<AnnotationPair> pairs = read_initial_annotations(string(argv[1]));
 
 	//initialize system to blank state
@@ -150,6 +151,7 @@ int main(int argc, char *argv[])
 	delete(AS);
 
 	AS = new AnnotationSet(test_bed_directory, hashTableType);
+
 	AS->initialize();
 
 	cout<<"verifying initial bootup from commited hashfile..." << endl;
