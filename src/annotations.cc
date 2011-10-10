@@ -2,7 +2,7 @@
 
 // type: refers to HashFile implementation. 'btree' or blank
 
-AnnotationSet::AnnotationSet(string dir_path, string hashTableType = "")
+AnnotationSet::AnnotationSet(string dir_path, string hashTableType)
 {
 	directory_path = dir_path;
 

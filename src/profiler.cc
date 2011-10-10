@@ -64,11 +64,11 @@ vector<AnnotationPair> read_initial_annotations(string filename)
 // mode = 1 : list_entries
 // mode = 2 : list_annotations
 
-int readSystem(AnnotationSet *AS, vector<string> queries, int mode)
+unsigned long readSystem(AnnotationSet *AS, vector<string> queries, int mode)
 {
-	int total_cycles = 0, timer = 0;
+	unsigned long total_cycles = 0, timer = 0;
 
-	for(int i=0; i<queries.size(); i++)
+	for(unsigned long i=0; i<queries.size(); i++)
 	{
 		string query = queries[i];;
 		
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	AnnotationSet *AS = new AnnotationSet(test_bed_directory, hashTableType);
 
 	cout << "initializing... "; cout.flush();
-	for(int i=0; i<pairs.size(); i++)
+	for(unsigned long i=0; i<pairs.size(); i++)
 	{
 		AS->annotate_entry(pairs[i].annotation, pairs[i].message);
 		annotations.insert(pairs[i].annotation);
@@ -130,8 +130,8 @@ int main(int argc, char *argv[])
 	AS = new AnnotationSet(test_bed_directory);
 	AS->initialize();
 
-	int entries_time = readSystem(AS, randAnnotations, 1);
-	int annotations_time = readSystem(AS, randMessages, 2);
+	unsigned long entries_time = readSystem(AS, randAnnotations, 1);
+	unsigned long annotations_time = readSystem(AS, randMessages, 2);
 
 	cout<<"list_entries (cycles): " << entries_time << endl;
 	cout<<"list_annotations (cycles): " << annotations_time << endl;

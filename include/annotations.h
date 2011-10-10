@@ -31,7 +31,7 @@ typedef struct
 class AnnotationSet
 {
 	public:
-		AnnotationSet(string directory_path, string hashTableType);
+		AnnotationSet(string directory_path, string hashTableType = "");
 		~AnnotationSet();
 		void initialize();
 		void annotate_entry(string A, string C);

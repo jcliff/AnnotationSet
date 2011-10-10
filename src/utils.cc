@@ -43,7 +43,7 @@ void convertHexToByteArray(unsigned char *byteArray, string s)
 {
 	unsigned int n;
 
-	for(int i=0; i<s.size()/2; i++)
+	for(unsigned int i=0; i<s.size()/2; i++)
 	{
 		stringstream ss;
 		ss << hex << s.substr(i*2,2);
@@ -64,7 +64,7 @@ unsigned int convertHexToInt(string s)
 }
 
 //perform the conversion 
-string convertIntToHex(int n, int width)
+string convertIntToHex(int n, unsigned int width)
 {
 	stringstream ss;
 	string str;
@@ -76,7 +76,7 @@ string convertIntToHex(int n, int width)
 	return str;
 }
 
-string convertIntToString(int n, int width)
+string convertIntToString(int n, unsigned int width)
 {
 	stringstream ss;
 	string str;
