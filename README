@@ -1,0 +1,14 @@
+Instructions on compiling & running: 
+
+TESTSUITE:
+	Compilation	: make testsuite
+	Usage		: ./testsuite [A2C snapshot file] [optional: "BTreeFile"]
+	
+PROFILER
+	Compilation	: make profiler
+	Usage		: ./profiler [A2C snapshot file] [optional: "BTreeFile"]		
+
+Notes:
+	BTreeFile is tree-like data-structure that complements HashFile.  By including
+	it in the command-line, we can either verify its correctness or test
+	it's speed versus the standard binary-search implementation that HashFile implements. 
