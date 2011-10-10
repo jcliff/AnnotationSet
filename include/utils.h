@@ -20,4 +20,6 @@ string convertIntToHex(int n, unsigned int width = 0);
 
 string convertIntToString(int n, unsigned int width = 0);
 
+void swapString(string &first, string &second);
+
 #endif

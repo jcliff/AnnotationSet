@@ -10,15 +10,20 @@ HashFile::~HashFile()
 	file.close();
 }
 
+// change the working-directory for hashfile, and close the existing
+// file if necessary
+
 void HashFile::setPath(string path)
 {
-	filename = path + "HashFile.txt";
-
 	if(file.is_open())
 		file.close();
 
+	filename = path + "HashFile.txt";
+
 	file.open(filename.c_str(), fstream::in );
-	// read first line, which encodes data size
+
+	// read first line (encoding data size) and set _data_region_ptr
+
 	string line;
 	getline(file, line);	
 	data_size = atoi(line.c_str());
@@ -35,12 +40,9 @@ string HashFile::get_line_at_index(unsigned long index)
 
 string HashFile::get_key_at_index(unsigned long index)
 {
-
 	string line = get_line_at_index(index);
 	return(line.substr(0,SHA_WIDTH));
-
 }
-
 
 string HashFile::get_val_at_index(unsigned long index)
 {
@@ -53,11 +55,9 @@ string HashFile::get_val_at_index(unsigned long index)
 
 unsigned long HashFile::get_aligned_index(unsigned long index, int mode = -1)
 {
-	assert(index >=0);
-	assert(index < data_size);
-	
 	string key = get_key_at_index(index);
-	// convert to signed
+
+	// convert index to signed, to simplify handling of boundary condition below
 	long long idx = index;
 
 	while(idx >= 0 && idx < data_size && get_key_at_index(idx) == key)
@@ -71,12 +71,22 @@ unsigned long HashFile::length()
 	return data_size;
 }
 
+string HashFile::getKeyAtIndex(unsigned long index)
+{
+	string line = get_line_at_index(index);	
+	return(line.substr(0,SHA_WIDTH));
+}	
+
+// returns set of values for specified key; utilizes binary search
+
 set<string> HashFile::get(string key)
 {
 	return get(key, 0, data_size - 1);
 }
 
-// returns vector of values for specified key; utilizes binary search
+// this Protected function allows children objects to specify the beginning and 
+// ending indices to constrain the binary-search to
+
 set<string> HashFile::get(string key, unsigned long window_low, unsigned long window_high)
 {
 	set<string> list;
@@ -91,15 +101,13 @@ set<string> HashFile::get(string key, unsigned long window_low, unsigned long wi
 	return list;
 }
 
-
 unsigned long HashFile::getIndexOfKey(string key)
 {
 	return getIndexOfKey(key, 0, data_size - 1);	
 }
 
-// returns HashTable index of specified key. If specified key is not
-// present, attempts to return the index of the next highest key, but
-// will always stay in-bounds. 
+// this Protected function returns HashTable index of specified key. If specified key is not
+// present, attempts to return the index of the next highest key, but will always stay in-bounds. 
 
 unsigned long HashFile::getIndexOfKey(string key, unsigned long window_low, unsigned long window_high) 
 {
@@ -139,19 +147,7 @@ unsigned long HashFile::getIndexOfKey(string key, unsigned long window_low, unsi
 
 }
 
-string HashFile::getKeyAtIndex(unsigned long index)
-{
-	string line = get_line_at_index(index);	
-	return(line.substr(0,SHA_WIDTH));
-}	
-
-
-void swap(string &first, string &second)
-{
-	string tmp = first;
-	first = second;
-	second = tmp;
-}
+// copies the state of the HashFile to another directory
 
 void HashFile::copyState(string dir_path)
 {
@@ -160,6 +156,8 @@ void HashFile::copyState(string dir_path)
 	file.open(filename.c_str(), fstream::in);
 }
 
+// moves the state of the HashFile to another directory
+
 void HashFile::moveState(string dir_path_init, string dir_path_final)
 {
 	file.close();
@@ -167,34 +165,13 @@ void HashFile::moveState(string dir_path_init, string dir_path_final)
 	setPath(dir_path_final);
 }
 
-//helper function for HashFile::commit; we do not know the final # of entries 
-//in the hashtable until we are done merging
-void HashFile::write_hash_file(string newPath, vector<string> &commit_lines)
-{
-	string newFilename = newPath + "HashFile.txt";
-	fstream newfile(newFilename.c_str(), fstream::out | fstream::trunc);
-	
-	stringstream ss;
-    ss << commit_lines.size();
-    string length = ss.str() + "\n";
-
-    //first write # of entries to file
-
-    newfile.write(length.c_str(), length.size());
-
-    //now write each individual entry
-    for(unsigned long i=0; i<commit_lines.size(); i++)
-     	newfile.write(commit_lines[i].c_str(), commit_lines[i].size());
-
-    newfile.flush();
-    newfile.close();
-}
-
-// perform a merge-sort of the HashFile and LogFile
+// perform a merge-sort of the HashFile and a compacted LogFile
 // and use the appropriate logic for annotation / unannotations
 void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 {
 	vector<Log::command> logEntries = log.readEntries();	
+	unsigned long entriesDeleted = 0;
+
 	if(!reverseLog)
 		sort(logEntries.begin(), logEntries.end(), Log::sortA);
 	else
@@ -203,6 +180,13 @@ void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 	unsigned long hashIdx = 0, logIdx = 0;
 	string hashLine, key, val, logLine, logFirst, logSecond;
 	vector<string> commit_lines;
+
+	string newFilename = newPath + "HashFile.txt";
+	fstream newFile(newFilename.c_str(), fstream::out | fstream::trunc);
+
+	string blank(LINE_WIDTH - 1, ' ');
+	blank += "\n";
+	newFile.write(blank.c_str(), blank.size());
 
 	while(hashIdx < data_size || logIdx < logEntries.size())
 	{
@@ -219,7 +203,7 @@ void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 			logSecond = logEntries[logIdx].C;
 	
 			if(reverseLog)	
-				swap(logFirst, logSecond);
+				swapString(logFirst, logSecond);
 
 			logLine = logFirst + " " + logSecond + "\n";
 		}
@@ -227,14 +211,14 @@ void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 		// we have finished writing from hash-file; simply flush remaining log file	
 		if(hashIdx == data_size)
 		{
-			commit_lines.push_back(logLine);
+			newFile.write(logLine.c_str(), logLine.size());
 			logIdx++;
 			continue;
 		}	
 		// we have finished writing log file; simply flush remaining hash-file
 		if(logIdx == logEntries.size())
 		{
-			commit_lines.push_back(hashLine);
+			newFile.write(hashLine.c_str(), hashLine.size());
 			hashIdx++;
 			continue;
 		}
@@ -244,8 +228,12 @@ void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 		// futhermore if the log is 'U', we skip writing anything to disk
 		if( key == logFirst && val == logSecond)
 		{
+			entriesDeleted++;
+
 			if(logEntries[logIdx].cmd == "A")
-				commit_lines.push_back(hashLine);
+				newFile.write(hashLine.c_str(), hashLine.size());
+			else
+				entriesDeleted++;
 
 			hashIdx++;
 			logIdx++;
@@ -256,16 +244,24 @@ void HashFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 		// write hashline to disk and increment hash pointer
 		if( key < logFirst || key == logFirst && val < logSecond )
 		{
-			commit_lines.push_back(hashLine);
+			newFile.write(hashLine.c_str(), hashLine.size());
 			hashIdx++;
 			continue;
 		}
 		else // else do the equivalent for logfile
 		{
-			commit_lines.push_back(logLine);
+			newFile.write(logLine.c_str(), logLine.size());
 			logIdx++;
 		}
 	}
 	
-	write_hash_file(newPath, commit_lines);
+	stringstream ss;
+    ss << data_size + logEntries.size() - entriesDeleted;
+    string length = ss.str();
+
+	newFile.seekp(0);
+	newFile.write(length.c_str(), length.size());
+
+	newFile.flush();
+	newFile.close();
 }

@@ -15,22 +15,30 @@ BTreeFile::~BTreeFile()
 void BTreeFile::setPath(string Path)
 {
 	path = Path;
+
 	HashFile::setPath(path);
-	filename = path + "BTreeFile.txt";
-	
+
 	if(file.is_open())
 		file.close();
 
+	filename = path + "BTreeFile.txt";
+	
 	file.open(filename.c_str(), fstream::in | fstream::binary);
 
 	if(!file.good())
+	{
+		table_size = 0;
 		return;
+	}
 
-	// read first 4 bytes, which encodes table size
+	// read first 4 bytes (encoding table size) and set _table_region_ptr
 	table_size = 0;
 	file.read((char *) &table_size, 4);
 	_table_region_ptr = file.tellg();
 }
+
+// write first-line (encoding table size) to a file.  if truncate == true
+// overwrite any existing file
 
 void BTreeFile::write_header(string newPath, unsigned long size, bool truncate)
 {
@@ -99,8 +107,8 @@ void BTreeFile::getEntryInTable(char *buf, unsigned long line_num, int line_inde
 	file.read(buf, ENTRY_WIDTH);
 }
 
-// iteratively follow the pointers in the table until we get to a line marked
-// 'XXXXX...' (no key) or 'L [address1][address2]' (line #'s surrounding key in HashFile)
+// Iteratively follow the pointers in the table until we get to a line marked
+// LINE_IDX_FLAG or EMPTY_FLAG
 
 set<string> BTreeFile::get(string key)
 {
@@ -134,7 +142,7 @@ set<string> BTreeFile::get(string key)
 	memcpy(&low, &table_entry[1], NUM_WIDTH);
 	memcpy(&high, &table_entry[NUM_WIDTH+1], NUM_WIDTH);
 
-	// call HashFile:: classes to extract set of values 
+	// call HashFile::get to extract set of values 
 	return HashFile::get(key, low, high);
 }
 
@@ -148,9 +156,9 @@ void BTreeFile::createTableLine(string newPath, string mask, unsigned long &line
 
 	// iterate through all integers covering the mask
 	// for each mask:
-	//     1.  if the key does not exist in HashTable, mark entry as 'XX..'
-	//     2.  if the key spans less than min_children_per_node entries, mark entry as 'L [index_begin][index_end]'
-	//     3.  else mark entry as 'T [table-line]' and recursively generate sub-table
+	//     1.  if the key does not exist in HashTable, mark entry as EMPTY_FLAG
+	//     2.  if the key spans less than min_children_per_node entries, mark entry as 'LINE_IDX_FLAG[begin idx][end idx]'
+	//     3.  else mark entry as 'TABLE_PTR_FLAG[table-line]' and recursively generate sub-table
 	for(int i=0; i<pow(16.0, (int)MASK_SIZE); i++)
 	{
 

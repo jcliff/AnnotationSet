@@ -35,7 +35,6 @@ class HashFile
 		unsigned long length();
 
 	private:
-		void write_hash_file(string newFilename, vector<string> &commit_lines);
 		unsigned long get_aligned_index(unsigned long index, int mode);
 		string get_line_at_index(unsigned long index);
 		string get_key_at_index(unsigned long index);

@@ -87,3 +87,10 @@ string convertIntToString(int n, unsigned int width)
 
 	return str;
 }
+
+void swapString(string &first, string &second)
+{
+	string tmp = first;
+	first = second;
+	second = tmp;
+}

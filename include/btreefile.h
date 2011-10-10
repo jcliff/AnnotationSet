@@ -4,13 +4,16 @@
 #include <fstream>
 #include <sstream>
 #include <assert.h>
-
-#include "hashfile.h"
 #include <math.h>
 
-using namespace std;
+#include "hashfile.h"
+
+#ifndef BTREEFILE_H
+#define BTREEFILE_H
 
 #define SHA_WIDTH 40
+
+using namespace std;
 
 class BTreeFile : public HashFile
 {
@@ -43,4 +46,4 @@ class BTreeFile : public HashFile
 		unsigned long table_size, last_table_line_written, min_children_per_node;
 };
 
-
+#endif
