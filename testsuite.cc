@@ -16,9 +16,9 @@ typedef struct
 
 void randomizePairs(vector<AnnotationPair> &pairs)
 {
-	for(int i = pairs.size()-1; i>=1 ; i--)
+	for(unsigned long i = pairs.size()-1; i>=1 ; i--)
 	{
-		int j = rand()%(i+1);
+		unsigned long j = rand()%(i+1);
 		AnnotationPair tmp = pairs[i];
 		pairs[i] = pairs[j];
 		pairs[j] = tmp;
@@ -48,7 +48,7 @@ vector<AnnotationPair> read_initial_annotations(string filename)
 //verify that all pairs are either bound or unbound
 void verifyAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state)
 {
-	for(int i=0; i<pairs.size(); i++)
+	for(unsigned long i=0; i<pairs.size(); i++)
 	{
 		set<string>::iterator it;
 		string message = pairs[i].message;
@@ -69,7 +69,7 @@ void setAllEntries(AnnotationSet *AS, vector<AnnotationPair> pairs, int state)
 {
 	//randomizePairs(pairs);
 
-	for(int i=0; i<pairs.size(); i++)
+	for(unsigned long i=0; i<pairs.size(); i++)
 	{
 		if(state == 1)
 			AS->annotate_entry(pairs[i].annotation, pairs[i].message);
