@@ -25,15 +25,6 @@ void HashFile::setPath(string path)
 	_data_region_ptr = file.tellg();
 }
 
-string HashFile::getFilename()
-{
-	return filename;
-}
-unsigned long HashFile::length()
-{
-	return data_size;
-}
-
 string HashFile::get_line_at_index(unsigned long index)
 {
 	string line;
@@ -73,6 +64,11 @@ unsigned long HashFile::get_aligned_index(unsigned long index, int mode = -1)
 		idx = idx + mode;
 
 	return(idx - mode);
+}
+
+unsigned long HashFile::length()
+{
+	return data_size;
 }
 
 set<string> HashFile::get(string key)

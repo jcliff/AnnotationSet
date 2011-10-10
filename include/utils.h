@@ -15,8 +15,7 @@ void file_copy(const char *filename1, const char *filename2);
 void convertHexToByteArray(unsigned char *byteArray, string s);
 
 unsigned int convertHexToInt(string s);
-
-//perform the conversion 
+ 
 string convertIntToHex(int n, unsigned int width = 0);
 
 string convertIntToString(int n, unsigned int width = 0);

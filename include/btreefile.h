@@ -15,12 +15,12 @@ using namespace std;
 class BTreeFile : public HashFile
 {
 	public:
-		BTreeFile(string path, unsigned long min_children = 128);
+		BTreeFile(string path, unsigned long minChildrenPerNode = 128);
 		~BTreeFile();
 		void setPath(string path);
 		set<string> get(string key);
 		void commit(string newPath, LogFile &log, bool reverseLog);
-		void moveState(string dir_path_init, string dir_path_final);
+		void moveState(string dirPathInit, string dirPathFinal);
 		void copyState(string newPath);
 	private:
 		void createTableLine(string newPath, string mask, unsigned long &line_cursor);

@@ -22,19 +22,17 @@ class HashFile
 		HashFile(string path);
 		virtual ~HashFile();
 		virtual void setPath(string path);
-		string getFilename();
 		virtual set<string> get(string key);
 		virtual void commit(string filename, LogFile &logFile, bool);
-		unsigned long length();
 		virtual void copyState(string newDirPath);
-		virtual void moveState(string dir_path_init, string dir_path_final);
+		virtual void moveState(string dirPathInit, string dirPathFinal);
 
 	protected:
 		unsigned long getIndexOfKey(string key, unsigned long window_low, unsigned long window_high);
 		string getKeyAtIndex(unsigned long index);
 		set<string> get(string key, unsigned long window_low, unsigned long window_high);
 		unsigned long getIndexOfKey(string key);
-
+		unsigned long length();
 
 	private:
 		void write_hash_file(string newFilename, vector<string> &commit_lines);

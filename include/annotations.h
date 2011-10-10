@@ -41,7 +41,7 @@ class AnnotationSet
 		void commit_to_disk();
 
 	private:
-		set<string>& hash_lookup(string, unordered_map<string, set<string> > &map, HashFile *h);
+		set<string>& hash_lookup(string key, unordered_map<string, set<string> > &map, HashFile *h);
 		void modify_entry(string cmd, string A, string C, bool writeLog = true);
 		void modify_entry_in_table( unordered_map<string, set<string> > &table, string cache_key, 
 									HashFile *hashfile, string cmd, string key, string value );
