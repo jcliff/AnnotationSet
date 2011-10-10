@@ -63,6 +63,10 @@ HashFile::~HashFile()
 void HashFile::setPath(string path)
 {
 	filename = path + "HashFile.txt";
+
+	if(file.is_open())
+		file.close();
+
 	file.open(filename.c_str(), fstream::in );
 	// read first line, which encodes data size
 	string line;

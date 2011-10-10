@@ -47,6 +47,19 @@ void file_copy(const char *filename1, const char *filename2)
     f2.close();
 }
 
+void convertHexToByteArray(unsigned char *byteArray, string s)
+{
+	unsigned int n;
+
+	for(int i=0; i<s.size()/2; i++)
+	{
+		stringstream ss;
+		ss << hex << s.substr(i*2,2);
+		ss >> n;
+		byteArray[s.size()/2-1-i] = n;
+	}
+
+}
 
 unsigned int convertHexToInt(string s)
 {

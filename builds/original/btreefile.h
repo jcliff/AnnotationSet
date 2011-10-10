@@ -36,7 +36,8 @@ class BTreeFile : public HashFile
 		fstream file;
 		string path;
 
-		const static int MASK_SIZE = 2, ENTRY_WIDTH = 9, FLAG_WIDTH = 1, NUM_WIDTH = (ENTRY_WIDTH - 1)/2;
+		const static int MASK_SIZE = 2, NUM_WIDTH = 4, FLAG_WIDTH = 1, ENTRY_WIDTH = 2 * NUM_WIDTH + 1;
+		const static char LINE_IDX_FLAG = 0x01, TABLE_PTR_FLAG = 0x02, EMPTY_FLAG = 0x00;
 
 		int min_children_per_node;
 		int LINE_WIDTH, _table_region_ptr;
@@ -44,9 +45,10 @@ class BTreeFile : public HashFile
 };
 
 
-BTreeFile::BTreeFile(string path, int minChildrenPerNode = 128) : HashFile()
+BTreeFile::BTreeFile(string path, int minChildrenPerNode = 64) : HashFile()
 {
 	min_children_per_node = minChildrenPerNode;
+	LINE_WIDTH = ENTRY_WIDTH * pow(16.0, (int)MASK_SIZE);
 	setPath(path);
 }
 
@@ -60,9 +62,9 @@ void BTreeFile::setPath(string Path)
 	path = Path;
 	HashFile::setPath(path);
 	filename = path + "BTreeFile.txt";
-	table_size = 0;
-
-	LINE_WIDTH = ENTRY_WIDTH * pow(16.0, (int)MASK_SIZE);
+	
+	if(file.is_open())
+		file.close();
 
 	file.open(filename.c_str(), fstream::in | fstream::binary);
 
@@ -70,6 +72,7 @@ void BTreeFile::setPath(string Path)
 		return;
 
 	// read first 4 bytes, which encodes table size
+	table_size = 0;
 	file.read((char *) &table_size, 4);
 	_table_region_ptr = file.tellg();
 }
@@ -141,34 +144,15 @@ void BTreeFile::getEntryInTable(char *buf, unsigned long line_num, int line_inde
 	file.read(buf, ENTRY_WIDTH);
 }
 
-unsigned long BTreeFile::getEntryRightNumber(string entry)
-{
-	unsigned long n;
-	string num = entry.substr(2 + NUM_WIDTH, NUM_WIDTH)
-	;
-	stringstream(num) >> n;
-	return(n);
-}
-
-unsigned long BTreeFile::getEntryLeftNumber(string entry)
-{
-	unsigned long n;
-	string num = entry.substr(2, NUM_WIDTH);
-	stringstream(num) >> n;
-	return(n);
-}
-
 // iteratively follow the pointers in the table until we get to a line marked
 // 'XXXXX...' (no key) or 'L [address1][address2]' (line #'s surrounding key in HashFile)
 
 set<string> BTreeFile::get(string key)
 {
 	set<string> list;
+	string masked_key;
 	int mask_index = 0, table_index;
 	unsigned long table_line = 0, begin_index, end_index;
-	char bytes[20];
-
-	string masked_key;
 
 	char *table_entry = new char[ENTRY_WIDTH];
 
@@ -180,12 +164,14 @@ set<string> BTreeFile::get(string key)
 		masked_key = key.substr(mask_index, MASK_SIZE);
 		table_index = convertHexToInt(masked_key);
 		getEntryInTable(table_entry, table_line, table_index);
+
 		table_line = 0;
 		memcpy(&table_line, &table_entry[NUM_WIDTH + 1], NUM_WIDTH);
 		mask_index += MASK_SIZE;	
-	} while(table_entry[0] == 0x02);
 
-	if(table_entry[0] == 0x00)
+	} while(table_entry[0] == TABLE_PTR_FLAG);
+
+	if(table_entry[0] == EMPTY_FLAG)
 		return list;
 
 	// table_line now contains index into HashFile of where to begin/end search
@@ -225,19 +211,12 @@ void BTreeFile::createTableLine(string newPath, string mask, unsigned long &line
 
 		unsigned long index_begin = HashFile::getIndexOfKey(new_mask_begin);
 
-		// check if this mask is out of our data-range
-		if(index_begin >= HashFile::length())
-		{
-			entry[0] = 0x00;
-			continue;
-		}
-
 		string key = HashFile::getKeyAtIndex(index_begin);
 
 		// check if this mask is even present in HashFile
 		if(key.substr(0, new_mask.size()) != new_mask)
 		{			
-			entry[0] = 0x00;
+			entry[0] = EMPTY_FLAG;
 			continue;
 		}
 
@@ -248,7 +227,7 @@ void BTreeFile::createTableLine(string newPath, string mask, unsigned long &line
 		// note that 'children' corresponds to unique key/val pairs; may infact cover the same key more than once
 		if(index_end - index_begin < min_children_per_node)
 		{
-			entry[0] = 0x01;
+			entry[0] = LINE_IDX_FLAG;
 			memcpy(&entry[1], &index_begin, NUM_WIDTH);
 			memcpy(&entry[1+NUM_WIDTH], &index_end, NUM_WIDTH);
 		}
@@ -258,7 +237,7 @@ void BTreeFile::createTableLine(string newPath, string mask, unsigned long &line
 			createTableLine(newPath, new_mask, line_cursor);
 
 			// create a pointer to the recursively created sub-table
-			entry[0] = 0x02;
+			entry[0] = TABLE_PTR_FLAG;
 			memcpy(&entry[1+NUM_WIDTH], &line_cursor_stored, NUM_WIDTH);
 		}
 
@@ -280,12 +259,14 @@ void BTreeFile::commit(string newPath, LogFile &log, bool reverseLog = false)
 	//create new file
 	write_header(newPath, 0, /*truncate existing file*/ true);
 
-	//create the table recursively
-	createTableLine(newPath, string(""), line_cursor);
+	if(HashFile::length() != 0)
+	{
+		//create the table recursively
+		createTableLine(newPath, string(""), line_cursor);
 
-	//and finally write the table-size to the first-line
-	write_header(newPath, line_cursor, false);
-
+		//and finally write the table-size to the first-line_cursor_stored
+		write_header(newPath, line_cursor, false);
+	}
 	//revert to initial path
 	HashFile::setPath(path);
 }
