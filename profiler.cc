@@ -135,9 +135,9 @@ int main(int argc, char *argv[])
 
 	cout<<"list_entries (cycles): " << entries_time << endl;
 	cout<<"list_annotations (cycles): " << annotations_time << endl;
-
 	delete(AS);
 
+	// run test using BTreeFile
 	if(hashTableType == "BTreeFile")
 	{
 		AS = new AnnotationSet(test_bed_directory, hashTableType);
@@ -149,6 +149,8 @@ int main(int argc, char *argv[])
 		cout<<"BTreeFile - list_entries (cycles): " << entries_time << endl;
 		cout<<"BTreeFile - list_annotations (cycles): " << annotations_time << endl;
 	}
+	
+	delete(AS);
 
 	return 0;
 }
