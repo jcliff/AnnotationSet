@@ -16,27 +16,10 @@ typedef struct
 	string message;	
 } AnnotationPair;
 
-
-void randomize_vector(vector<string> &vec)
-{
-	for(int i = vec.size()-1; i>=1 ; i--)
-	{
-		int j = rand()%(i+1);
-		string tmp = vec[i];
-		vec[i] = vec[j];
-		vec[j] = tmp;
-	}
-}
-
 vector<string> generate_rand_vector_from_set(set<string> queries)
 {
-	set<string>::iterator it;
-	vector<string> randVec;
-
-	for(it = queries.begin(); it != queries.end(); it++)
-		randVec.push_back(*it);	
-	
-	randomize_vector(randVec);
+  vector<string> randVec(queries.begin(), queries.end());
+  random_shuffle(randVec.begin(), randVec.end());
 
 	return randVec;
 }
